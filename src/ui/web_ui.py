@@ -45,22 +45,25 @@ footer {
 .gradio-video div,
 .gradio-video .upload-container,
 .gradio-video .upload-zone,
-.gradio-video div[class*="upload"] {
+.gradio-video div[class*="upload"],
+.gradio-video div[class*="upload-container"],
+.gradio-video div[class*="upload-zone"] {
     border-radius: 16px !important;
     overflow: hidden !important;
 }
-/* Force rounded borders on the dashed upload zone */
+/* Force rounded borders on the upload zone */
 .gradio-video .upload-container,
 .gradio-video .upload-zone,
-.gradio-video div[class*="upload"] {
-    border: 2px dashed rgba(255, 255, 255, 0.2) !important;
+.gradio-video div[class*="upload"],
+.gradio-video div[class*="upload-container"],
+.gradio-video div[class*="upload-zone"] {
+    border: 2px solid rgba(255, 255, 255, 0.15) !important;
 }
-/* Hide all buttons and source select toolbars inside the upload zone container */
-.gradio-video .upload-container button,
-.gradio-video div[class*="upload"] button,
-.gradio-video div[class*="upload"] .select-wrap,
-.gradio-video div[class*="upload"] div[class*="source-select"],
-.gradio-video div[class*="upload"] div[class*="select-wrap"] {
+/* Hide the webcam and file upload source select buttons / toolbar */
+.gradio-video .source-selection,
+.gradio-video [data-testid="source-select"],
+.gradio-video div[class*="source-select"],
+.gradio-video span[class*="source-selection"] {
     display: none !important;
 }
 /* Force fixed height on the video player and video element to prevent layout shifts */
