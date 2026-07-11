@@ -39,37 +39,27 @@ footer {
     border: 1px solid #1e293b !important;
     padding: 4px 8px !important;
 }
-/* Rounded corners and clip overflow for all components inside video player */
-.gradio-video, 
-.gradio-video video, 
-.gradio-video div,
-.gradio-video .upload-container,
-.gradio-video .upload-zone,
-.gradio-video div[class*="upload"],
-.gradio-video div[class*="upload-container"],
-.gradio-video div[class*="upload-zone"] {
+/* When video is loaded, style the video player element to be rounded */
+video {
     border-radius: 16px !important;
     overflow: hidden !important;
 }
-/* Force rounded borders on the upload zone */
-.gradio-video .upload-container,
-.gradio-video .upload-zone,
-.gradio-video div[class*="upload"],
-.gradio-video div[class*="upload-container"],
-.gradio-video div[class*="upload-zone"] {
-    border: 2px solid rgba(255, 255, 255, 0.15) !important;
-}
 /* Hide the webcam and file upload source select buttons / toolbar */
-.gradio-video .source-selection,
-.gradio-video [data-testid="source-select"],
-.gradio-video div[class*="source-select"],
-.gradio-video span[class*="source-selection"] {
+.source-selection,
+[data-testid="source-select"],
+div[class*="source-select"],
+span[class*="source-selection"],
+button[aria-label="Upload file"],
+button[aria-label="Record video from camera"] {
     display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
 }
 /* Force fixed height on the video player and video element to prevent layout shifts */
-.gradio-video, 
-.gradio-video video,
-.gradio-video div[class*="video-container"] {
+video,
+div[class*="video-container"] {
     height: 320px !important;
     max-height: 320px !important;
     object-fit: contain !important;
@@ -117,6 +107,7 @@ def update_voices_dropdown(target_lang):
 
 def build_ui():
     head_html = """
+    <title>AI Video Dubber</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -190,11 +181,11 @@ def build_ui():
             # Left Column (scale=1)
             with gr.Column(scale=1, elem_classes=["flex", "flex-col", "gap-6"]):
                 # Video Preview Card (full screen inside card, no padding/margin)
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-0", "!m-0", "!shadow-xl", "!overflow-hidden"]):
+                with gr.Group(elem_classes=["bg-[#0f172a]/40", "border", "border-dashed", "border-white/5", "p-0", "m-0", "shadow-xl", "overflow-hidden"]):
                     video_player = gr.Video(label=None, interactive=True, show_label=False, height=320)
                 
                 # Configurations Card
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
+                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-dashed", "!border-white/5", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
                     gr.HTML('<div class="text-base font-bold text-white mb-2">Configurations</div>')
                     with gr.Row(elem_classes=["gap-4"]):
                         whisper_model = gr.Dropdown(
@@ -242,7 +233,7 @@ def build_ui():
                     
             # Right Column (scale=2)
             with gr.Column(scale=2, elem_classes=["flex", "flex-col", "gap-6"]):
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4", "!h-full"]):
+                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4", "!h-full"]):
                     gr.HTML("""
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-base font-bold text-white">Translation Preview & Editor</span>
@@ -264,7 +255,7 @@ def build_ui():
                         column_count=(5, "fixed"),
                         interactive=True,
                         show_label=False,
-                        elem_classes=["!rounded-xl", "!border", "!border-white/5", "!overflow-hidden"]
+                        elem_classes=["!border", "!border-white/5", "!overflow-hidden"]
                     )
                     
                     btn_step2 = gr.Button(
