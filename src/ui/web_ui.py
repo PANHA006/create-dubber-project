@@ -5,16 +5,18 @@ from src.core.pipeline import step1_transcribe_and_translate, step2_generate_dub
 from src.utils.audio_helper import make_video_browser_compatible
 
 CUSTOM_CSS = """
-body, .gradio-container {
+body, .gradio-container, .gradio-container > div {
     background-color: #0b0f19 !important;
     color: #e2e8f0 !important;
     max-width: 100% !important;
-    padding-left: 0px !important;
-    padding-right: 0px !important;
+    width: 100% !important;
+    padding: 0px !important;
+    margin: 0px !important;
 }
 .main-layout {
     padding-left: 24px !important;
     padding-right: 24px !important;
+    padding-bottom: 24px !important;
 }
 footer {
     display: none !important;
@@ -93,7 +95,7 @@ def build_ui():
         }
     </script>
     """
-    with gr.Blocks(title="AI Video Dubber") as demo:
+    with gr.Blocks(title="AI Video Dubber", fill_width=True) as demo:
         # State management variables
         extracted_audio_state = gr.State("")
         temp_dir_state = gr.State("")
@@ -152,23 +154,9 @@ def build_ui():
         with gr.Row(elem_classes=["main-layout", "gap-6"]):
             # Left Column (scale=1)
             with gr.Column(scale=1, elem_classes=["flex", "flex-col", "gap-6"]):
-                # Video Preview Card
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
-                    gr.HTML('<div class="text-base font-bold text-white mb-2">Video Preview</div>')
-                    video_player = gr.Video(label=None, interactive=False, show_label=False)
-                    upload_btn = gr.UploadButton(
-                        "Upload Source Video 📁", 
-                        file_types=["video"], 
-                        file_count="single", 
-                        elem_classes=[
-                            "!bg-gradient-to-r", "!from-amber-500", "!to-orange-600",
-                            "hover:!from-amber-400", "hover:!to-orange-500", "!text-white", 
-                            "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
-                            "!transition-all", "!duration-200", "!border-none",
-                            "!w-full", "!shadow-md", "!shadow-orange-500/10",
-                            "hover:!shadow-orange-500/20"
-                        ]
-                    )
+                # Video Preview Card (full screen inside card, no padding/margin)
+                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-0", "!m-0", "!shadow-xl", "!overflow-hidden"]):
+                    video_player = gr.Video(label=None, interactive=True, show_label=False)
                 
                 # Configurations Card
                 with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
@@ -270,10 +258,19 @@ def build_ui():
             outputs=[target_voice]
         )
         
-        # Handle navbar video upload and browser-compatibility conversion
-        upload_btn.upload(
+        # Handle video upload directly via the video player dropzone
+        video_player.upload(
             fn=handle_video_upload,
-            inputs=[upload_btn],
+            inputs=[video_player],
+            outputs=[video_file_state, video_player, status_output, btn_step1]
+        )
+        
+        # Handle clearing the video to reset UI state
+        def handle_video_clear():
+            return None, None, "Video removed.", gr.Button(interactive=False)
+            
+        video_player.clear(
+            fn=handle_video_clear,
             outputs=[video_file_state, video_player, status_output, btn_step1]
         )
         
