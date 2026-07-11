@@ -39,6 +39,22 @@ footer {
     border: 1px solid #1e293b !important;
     padding: 4px 8px !important;
 }
+/* Rounded corners and clip overflow for all components inside video player */
+.gradio-video, 
+.gradio-video video, 
+.gradio-video div,
+.gradio-video .upload-container,
+.gradio-video .upload-zone {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+/* Hide the webcam and file upload source select buttons at the bottom of the Video component */
+.gradio-video .select-wrap,
+.gradio-video .source-select,
+.gradio-video div[class*="select-wrap"],
+.gradio-video div[class*="source-select"] {
+    display: none !important;
+}
 """
 
 import os
@@ -156,7 +172,7 @@ def build_ui():
             with gr.Column(scale=1, elem_classes=["flex", "flex-col", "gap-6"]):
                 # Video Preview Card (full screen inside card, no padding/margin)
                 with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-0", "!m-0", "!shadow-xl", "!overflow-hidden"]):
-                    video_player = gr.Video(label=None, interactive=True, show_label=False)
+                    video_player = gr.Video(label=None, interactive=True, show_label=False, height=320)
                 
                 # Configurations Card
                 with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!rounded-2xl", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
