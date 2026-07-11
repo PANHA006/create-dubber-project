@@ -44,16 +44,32 @@ footer {
 .gradio-video video, 
 .gradio-video div,
 .gradio-video .upload-container,
-.gradio-video .upload-zone {
+.gradio-video .upload-zone,
+.gradio-video div[class*="upload"] {
     border-radius: 16px !important;
     overflow: hidden !important;
 }
-/* Hide the webcam and file upload source select buttons at the bottom of the Video component */
-.gradio-video .select-wrap,
-.gradio-video .source-select,
-.gradio-video div[class*="select-wrap"],
-.gradio-video div[class*="source-select"] {
+/* Force rounded borders on the dashed upload zone */
+.gradio-video .upload-container,
+.gradio-video .upload-zone,
+.gradio-video div[class*="upload"] {
+    border: 2px dashed rgba(255, 255, 255, 0.2) !important;
+}
+/* Hide all buttons and source select toolbars inside the upload zone container */
+.gradio-video .upload-container button,
+.gradio-video div[class*="upload"] button,
+.gradio-video div[class*="upload"] .select-wrap,
+.gradio-video div[class*="upload"] div[class*="source-select"],
+.gradio-video div[class*="upload"] div[class*="select-wrap"] {
     display: none !important;
+}
+/* Force fixed height on the video player and video element to prevent layout shifts */
+.gradio-video, 
+.gradio-video video,
+.gradio-video div[class*="video-container"] {
+    height: 320px !important;
+    max-height: 320px !important;
+    object-fit: contain !important;
 }
 """
 
