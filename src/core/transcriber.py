@@ -1,4 +1,3 @@
-import os
 import subprocess
 import whisper
 import imageio_ffmpeg

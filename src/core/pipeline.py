@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-import math
 import pandas as pd
 from pydub import AudioSegment
 import imageio_ffmpeg
@@ -73,10 +72,10 @@ def step1_transcribe_and_translate(video_path, model_name, source_lang, target_l
             trans_text = translate_text(seg["text"], source_code, target_code)
             translated_segments.append({
                 "ID": seg["id"],
-                "Start (s)": round(seg["start"], 2),
-                "End (s)": round(seg["end"], 2),
-                "Original Text": seg["text"].strip(),
-                "Translated Text": trans_text.strip() if trans_text else ""
+                "Start": round(seg["start"], 2),
+                "End": round(seg["end"], 2),
+                "Orig": seg["text"].strip(),
+                "Trans": trans_text.strip() if trans_text else ""
             })
             
         df = pd.DataFrame(translated_segments)
@@ -116,9 +115,9 @@ def step2_generate_dubbed_video(df, video_path, extracted_audio, temp_dir, targe
         
         for index, row in df.iterrows():
             seg_id = int(row["ID"])
-            start_s = float(row["Start (s)"])
-            end_s = float(row["End (s)"])
-            translated_text = str(row["Translated Text"]).strip()
+            start_s = float(row["Start"])
+            end_s = float(row["End"])
+            translated_text = str(row["Trans"]).strip()
             
             if not translated_text:
                 continue
