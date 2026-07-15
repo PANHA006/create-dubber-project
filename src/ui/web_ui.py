@@ -178,16 +178,15 @@ def build_ui():
             """, scale=0)
             
         with gr.Row(elem_classes=["main-layout", "gap-6"]):
-            # Left Column (scale=1)
-            with gr.Column(scale=1, elem_classes=["flex", "flex-col", "gap-6"]):
+            # Left Column (scale=2)
+            with gr.Column(scale=2, elem_classes=["flex", "flex-col", "gap-6"]):
                 # Video Preview Card (full screen inside card, no padding/margin)
                 with gr.Group(elem_classes=["bg-[#0f172a]/40", "border", "border-dashed", "border-white/5", "p-0", "m-0", "shadow-xl", "overflow-hidden"]):
-                    video_player = gr.Video(label=None, interactive=True, show_label=False, height=320)
+                    video_player = gr.Video(label=None, interactive=True, show_label=False, elem_id="video-preview")
                 
                 # Configurations Card
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-dashed", "!border-white/5", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4"]):
-                    gr.HTML('<div class="text-base font-bold text-white mb-2">Configurations</div>')
-                    with gr.Row(elem_classes=["gap-4"]):
+                with gr.Group(elem_id="configurations-card", elem_classes=["!bg-[#0f172a]/40", "!border", "!border-dashed", "!border-white/5", "!p-0", "!m-0", "!shadow-xl", "!flex", "!flex-col", "!gap-2"]):
+                    with gr.Row(elem_classes=["gap-2", "!px-3", "!pt-3"]):
                         whisper_model = gr.Dropdown(
                             label="Whisper Model", 
                             choices=["tiny", "base", "small", "medium", "large"], 
@@ -198,7 +197,7 @@ def build_ui():
                             choices=["Auto Detect"] + list(LANGUAGES.keys()), 
                             value="Auto Detect"
                         )
-                    with gr.Row(elem_classes=["gap-4"]):
+                    with gr.Row(elem_classes=["gap-2", "!px-3"]):
                         target_lang = gr.Dropdown(
                             label="Target Lang", 
                             choices=list(LANGUAGES.keys()), 
@@ -210,65 +209,104 @@ def build_ui():
                             value=None
                         )
                         
-                    bg_volume = gr.Slider(
-                        label="Background Music Volume", 
-                        minimum=0.0, 
-                        maximum=1.0, 
-                        value=0.15, 
-                        step=0.05
-                    )
+                    with gr.Row(elem_classes=["!px-3", "!gap-2"]):
+                        processing_mode = gr.Radio(
+                            choices=["Dubbing Only", "Subtitles Only", "Dubbing + Subtitles"], 
+                            value="Dubbing Only", 
+                            show_label=False
+                        )
+                    with gr.Row(elem_classes=["!px-3", "!gap-2"]):
+                        sub_font = gr.Dropdown(
+                            choices=["Arial", "Calibri", "Tahoma", "Courier New", "Verdana", "Khmer UI", "DaunPenh", "Khmer OS Battambang", "Battambang"], 
+                            value="Arial", 
+                            label="Subtitle Font"
+                        )
+                        sub_align = gr.Dropdown(
+                            choices=["Bottom", "Top", "Middle"],
+                            value="Bottom",
+                            label="Subtitle Position"
+                        )
+                        sub_font_size = gr.Slider(
+                            minimum=10, 
+                            maximum=60, 
+                            step=2, 
+                            value=24, 
+                            label="Subtitle Font Size"
+                        )
+                    with gr.Row(elem_classes=["!px-3", "!gap-2"]):
+                        bg_volume = gr.Slider(
+                            label="Background Music", 
+                            minimum=0.0, 
+                            maximum=1.0, 
+                            value=0.15, 
+                            step=0.05
+                        )
+                        remove_spoken_voice = gr.Checkbox(
+                            label="Remove Original Spoken Voice", 
+                            value=False
+                        )
+                        sub_bg_box = gr.Checkbox(
+                            label="Hide Old Subtitles (Black Background)", 
+                            value=False
+                        )
                     
-                    btn_step1 = gr.Button(
-                        "Step 1: Transcribe & Translate", 
-                        interactive=False,
-                        elem_classes=[
-                            "!bg-gradient-to-r", "!from-amber-500", "!to-orange-600",
-                            "hover:!from-amber-400", "hover:!to-orange-500", "!text-white", 
-                            "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
-                            "!transition-all", "!duration-200", "!border-none",
-                            "!w-full", "!shadow-md", "!shadow-orange-500/10",
-                            "hover:!shadow-orange-500/20"
-                        ]
-                    )
+                    with gr.Row(elem_classes=["!px-3", "!pb-3"]):
+                        btn_step1 = gr.Button(
+                            "Step 1: Transcribe & Translate", 
+                            interactive=False,
+                            elem_classes=[
+                                "!bg-gradient-to-r", "!from-amber-500", "!to-orange-600",
+                                "hover:!from-amber-400", "hover:!to-orange-500", "!text-white", 
+                                "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
+                                "!transition-all", "!duration-200", "!border-none",
+                                "!w-full", "!shadow-md", "!shadow-orange-500/10",
+                                "hover:!shadow-orange-500/20"
+                            ]
+                        )
                     
-            # Right Column (scale=2)
-            with gr.Column(scale=2, elem_classes=["flex", "flex-col", "gap-6"]):
-                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!p-5", "!shadow-xl", "!flex", "!flex-col", "!gap-4", "!h-full"]):
-                    gr.HTML("""
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-base font-bold text-white">Translation Preview & Editor</span>
-                        <span class="text-xs text-slate-500">Double click cells to edit translations</span>
-                    </div>
-                    """)
-                    
-                    status_output = gr.Textbox(
-                        label=None, 
-                        placeholder="Awaiting steps...", 
-                        interactive=False, 
-                        show_label=False,
-                        lines=1
-                    )
-                    
+            # Right Column (scale=5)
+            with gr.Column(scale=5, elem_classes=["flex", "flex-col", "gap-6"]):
+                with gr.Group(elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!p-0", "!m-0", "!shadow-xl", "!flex", "!flex-col", "!gap-4", "!h-full"]):
                     transcription_df = gr.Dataframe(
                         headers=["ID", "Start", "End", "Orig", "Trans"],
                         datatype=["number", "number", "number", "str", "str"],
                         column_count=(5, "fixed"),
                         interactive=True,
                         show_label=False,
-                        elem_classes=["!border", "!border-white/5", "!overflow-hidden"]
+                        elem_classes=["!border-none", "!m-0", "!p-0", "!overflow-auto"],
+                        elem_id="transcription-dataframe"
                     )
                     
-                    btn_step2 = gr.Button(
-                        "Step 2: Generate Dubbed Video", 
-                        interactive=False,
-                        elem_classes=[
-                            "!bg-gradient-to-r", "!from-blue-600", "!to-indigo-600",
-                            "hover:!from-blue-500", "hover:!to-indigo-500", "!text-white", 
-                            "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
-                            "!transition-all", "!duration-200", "!border-none",
-                            "!w-full", "!shadow-md", "!shadow-blue-500/10",
-                            "hover:!shadow-blue-500/20"
-                        ]
+                    with gr.Row(elem_classes=["!px-4", "!pb-4"]):
+                        btn_step2 = gr.Button(
+                            "Step 2: Generate Dubbed Video", 
+                            interactive=False,
+                            elem_classes=[
+                                "!bg-gradient-to-r", "!from-blue-600", "!to-indigo-600",
+                                "hover:!from-blue-500", "hover:!to-indigo-500", "!text-white", 
+                                "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
+                                "!transition-all", "!duration-200", "!border-none",
+                                "!w-full", "!shadow-md", "!shadow-blue-500/10",
+                                "hover:!shadow-blue-500/20"
+                            ]
+                        )
+                
+                # New group below for log and state
+                with gr.Group(elem_id="log-state-group", elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!p-0", "!m-0", "!shadow-xl", "!flex", "!flex-col"]):
+                    gr.HTML("""
+                    <div class="flex items-center px-3 py-2 border-b border-white/5">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Log & State</span>
+                    </div>
+                    """)
+                    status_output = gr.Textbox(
+                        label=None, 
+                        placeholder="Awaiting steps...", 
+                        interactive=False, 
+                        show_label=False,
+                        lines=3,
+                        max_lines=6,
+                        elem_classes=["!border-none", "!bg-transparent", "!m-0", "!p-2", "!font-mono", "!text-xs"],
+                        elem_id="log-terminal"
                     )
                     
         # Language change triggers voice dropdown population
@@ -283,6 +321,8 @@ def build_ui():
             fn=lambda: update_voices_dropdown("Spanish"),
             outputs=[target_voice]
         )
+        
+
         
         # Handle video upload directly via the video player dropzone
         video_player.upload(
@@ -314,15 +354,15 @@ def build_ui():
             outputs=[transcription_df, extracted_audio_state, temp_dir_state, status_output, btn_step2]
         )
         
-        def step2_wrapper(df, video_path, extracted_audio, temp_dir, target_voice, bg_volume):
+        def step2_wrapper(df, video_path, extracted_audio, temp_dir, target_voice, bg_volume, remove_voice, proc_mode, font, font_size, align, bg_box):
             out_video, status = step2_generate_dubbed_video(
-                df, video_path, extracted_audio, temp_dir, target_voice, bg_volume
+                df, video_path, extracted_audio, temp_dir, target_voice, bg_volume, remove_voice, proc_mode, font, font_size, align, bg_box
             )
             return out_video, status, out_video
             
         btn_step2.click(
             fn=step2_wrapper,
-            inputs=[transcription_df, video_file_state, extracted_audio_state, temp_dir_state, target_voice, bg_volume],
+            inputs=[transcription_df, video_file_state, extracted_audio_state, temp_dir_state, target_voice, bg_volume, remove_spoken_voice, processing_mode, sub_font, sub_font_size, sub_align, sub_bg_box],
             outputs=[video_player, status_output, save_as_btn]
         )
         

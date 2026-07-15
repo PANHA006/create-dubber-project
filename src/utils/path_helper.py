@@ -49,3 +49,14 @@ def setup_ffmpeg_path():
     except Exception as e:
         print(f"WARNING: Failed to set up local FFmpeg/FFprobe wrapper: {e}")
         return None
+
+def get_ffmpeg_executable():
+    """Returns the path to the custom full FFmpeg binary in the temp folder if it exists, otherwise falls back to imageio-ffmpeg."""
+    import os
+    import tempfile
+    temp_bin_dir = os.path.join(tempfile.gettempdir(), "ffmpeg_local_bin")
+    local_ffmpeg_exe = os.path.join(temp_bin_dir, "ffmpeg.exe")
+    if os.path.exists(local_ffmpeg_exe):
+        return local_ffmpeg_exe
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()

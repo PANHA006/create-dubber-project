@@ -10,8 +10,10 @@ def get_whisper_model(model_name):
         WHISPER_MODELS[model_name] = whisper.load_model(model_name)
     return WHISPER_MODELS[model_name]
 
+from src.utils.path_helper import get_ffmpeg_executable
+
 def extract_audio(video_path, output_wav_path):
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    ffmpeg_exe = get_ffmpeg_executable()
     cmd = [
         ffmpeg_exe, "-y",
         "-i", video_path,

@@ -6,10 +6,12 @@ import subprocess
 import imageio_ffmpeg
 from pydub import AudioSegment
 
+from src.utils.path_helper import get_ffmpeg_executable
+
 def load_audio_segment_natively(file_path):
     """Bypasses pydub's dependency on ffprobe by decoding audio to raw PCM in memory using ffmpeg."""
     temp_pcm = file_path + ".raw"
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    ffmpeg_exe = get_ffmpeg_executable()
     cmd = [
         ffmpeg_exe, "-y",
         "-i", file_path,
@@ -61,7 +63,7 @@ def adjust_audio_speed(input_path, output_path, speed):
     filters.append(f"atempo={temp_speed:.2f}")
     filter_str = ",".join(filters)
     
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    ffmpeg_exe = get_ffmpeg_executable()
     cmd = [
         ffmpeg_exe, "-y",
         "-i", input_path,
@@ -72,13 +74,13 @@ def adjust_audio_speed(input_path, output_path, speed):
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 def mix_audio_tracks(original_audio_path, dubbed_audio_path, background_volume, output_mixed_path):
-    original_audio = load_audio_segment_natively(original_audio_path)
+    bg_audio = load_audio_segment_natively(original_audio_path)
     dubbed_audio = load_audio_segment_natively(dubbed_audio_path)
     
     if background_volume > 0.0:
         vol = max(background_volume, 0.0001)
         db_reduction = 20 * math.log10(vol)
-        reduced_bg = original_audio.apply_gain(db_reduction)
+        reduced_bg = bg_audio.apply_gain(db_reduction)
         mixed_audio = reduced_bg.overlay(dubbed_audio)
     else:
         mixed_audio = dubbed_audio
@@ -130,7 +132,7 @@ def make_video_browser_compatible(video_path):
         output_path = os.path.splitext(output_path)[0] + ".mp4"
         
     print(f"Transcoding uploaded video to browser-compatible H.264/AAC format: {output_path}")
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    ffmpeg_exe = get_ffmpeg_executable()
     cmd = [
         ffmpeg_exe, "-y",
         "-i", video_path,
@@ -147,3 +149,5 @@ def make_video_browser_compatible(video_path):
     except Exception as e:
         print(f"Error converting video: {e}")
         return video_path
+
+
