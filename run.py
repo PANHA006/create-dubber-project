@@ -54,5 +54,14 @@ from src.ui.web_ui import build_ui, CUSTOM_CSS
 demo, head_html = build_ui()
 
 if __name__ == "__main__":
+    import os
+    output_abs_path = os.path.abspath("output")
     demo.queue()
-    demo.launch(server_name="127.0.0.1", share=False, theme=gr.themes.Default(), css=CUSTOM_CSS, head=head_html)
+    demo.launch(
+        server_name="127.0.0.1", 
+        share=False, 
+        theme=gr.themes.Default(), 
+        css=CUSTOM_CSS, 
+        head=head_html,
+        allowed_paths=[output_abs_path]
+    )

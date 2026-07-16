@@ -12,6 +12,8 @@ def load_voices_sync():
             asyncio.set_event_loop(loop)
             voices = loop.run_until_complete(edge_tts.VoicesManager.create())
             VOICE_LIST = voices.voices
+            if not VOICE_LIST:
+                raise ValueError("Empty voices list returned from Edge TTS")
             loop.close()
             print(f"Loaded {len(VOICE_LIST)} voices from Microsoft Edge TTS.")
         except Exception as e:
