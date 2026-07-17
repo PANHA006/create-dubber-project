@@ -13,6 +13,7 @@ cmd = [
     "--add-data", "resources;resources",
     "--collect-all", "gradio",
     "--collect-all", "safehttpx",
+    "--collect-all", "groovy",
     "--collect-all", "whisper",
     "--collect-all", "deep_translator",
     "--collect-all", "edge_tts",

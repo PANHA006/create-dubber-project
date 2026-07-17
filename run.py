@@ -1,20 +1,21 @@
 import sys
 import io
 
-# Force console outputs to use UTF-8 to prevent UnicodeEncodeError crashes on Windows
-if not getattr(sys.stdout, '__utf8_wrapped__', False):
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stdout.__utf8_wrapped__ = True
-    except Exception:
-        pass
+# Force console outputs to use UTF-8 and write unbuffered directly to console
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True, write_through=True)
+except Exception:
+    pass
 
-if not getattr(sys.stderr, '__utf8_wrapped__', False):
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-        sys.stderr.__utf8_wrapped__ = True
-    except Exception:
-        pass
+try:
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True, write_through=True)
+except Exception:
+    pass
+
+print("==========================================================", flush=True)
+print("              STARTING DUBBER AI APPLICATION             ", flush=True)
+print("==========================================================", flush=True)
+print("[DubberAI] Initializing environment and paths...", flush=True)
 
 if sys.platform == 'win32':
     import asyncio
@@ -42,16 +43,19 @@ warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using F
 from src.utils.path_helper import setup_ffmpeg_path
 setup_ffmpeg_path()
 
+print("[DubberAI] Loading audio/video processing libraries...", flush=True)
 # Configure pydub to use the same ffmpeg executable
 import imageio_ffmpeg
 from pydub import AudioSegment
 AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 
+print("[DubberAI] Loading machine learning and interface libraries (this may take 10-20 seconds)...", flush=True)
 # 2. Build and launch the Gradio UI
 import gradio as gr
 from src.ui.web_ui import build_ui, CUSTOM_CSS
 
 demo, head_html = build_ui()
+print("[DubberAI] Libraries loaded. Launching local web server...", flush=True)
 
 if __name__ == "__main__":
     import os
@@ -60,6 +64,7 @@ if __name__ == "__main__":
     demo.launch(
         server_name="127.0.0.1", 
         share=False, 
+        inbrowser=True,
         theme=gr.themes.Default(), 
         css=CUSTOM_CSS, 
         head=head_html,
