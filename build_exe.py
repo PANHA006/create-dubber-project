@@ -12,6 +12,7 @@ cmd = [
     "--name", "DubberAI",
     "--add-data", "resources;resources",
     "--collect-all", "gradio",
+    "--collect-all", "safehttpx",
     "--collect-all", "whisper",
     "--collect-all", "deep_translator",
     "--collect-all", "edge_tts",
