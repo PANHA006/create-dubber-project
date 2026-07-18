@@ -2,7 +2,7 @@ import gradio as gr
 import os
 from src.config import LANGUAGES
 from src.core.synthesizer import load_voices_sync
-from src.core.pipeline import step1_transcribe_and_translate, step2_generate_dubbed_video
+from src.core.pipeline import step1_a_transcribe, step1_b_translate, step2_generate_dubbed_video
 from src.utils.audio_helper import make_video_browser_compatible
 
 CUSTOM_CSS = """
@@ -323,12 +323,12 @@ def process_uploaded_file(file_obj):
 def handle_video_upload(file_obj):
     raw_path = process_uploaded_file(file_obj)
     if not raw_path:
-        return None, None, "No video uploaded.", gr.Button(interactive=False)
+        return None, None, "No video uploaded.", gr.Button(interactive=False), gr.Button(interactive=False)
     try:
         compatible_path = make_video_browser_compatible(raw_path)
-        return compatible_path, compatible_path, f"Video uploaded successfully: {os.path.basename(compatible_path)}", gr.Button(interactive=True)
+        return compatible_path, compatible_path, f"Video uploaded successfully: {os.path.basename(compatible_path)}", gr.Button(interactive=True), gr.Button(interactive=False)
     except Exception as e:
-        return None, None, f"Error processing uploaded video: {str(e)}", gr.Button(interactive=False)
+        return None, None, f"Error processing uploaded video: {str(e)}", gr.Button(interactive=False), gr.Button(interactive=False)
 
 def update_voices_dropdown(target_lang):
     voices = load_voices_sync()
@@ -629,13 +629,25 @@ def build_ui():
                             value=False
                         )
                     
-                    with gr.Row(elem_classes=["!py-3", "!px-3"]):
-                        btn_step1 = gr.Button(
-                            "Transcribe & Translate", 
+                    with gr.Row(elem_classes=["!py-3", "!px-3", "!gap-2"]):
+                        btn_transcribe = gr.Button(
+                            "Transcript", 
                             interactive=False,
                             elem_classes=[
-                                "!bg-gradient-to-r", "!from-amber-500", "!to-orange-600",
-                                "hover:!from-amber-400", "hover:!to-orange-500", "!text-white", 
+                                "!bg-gradient-to-r", "!from-amber-500", "!to-amber-600",
+                                "hover:!from-amber-400", "hover:!to-amber-500", "!text-white", 
+                                "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
+                                "!transition-all", "!duration-200", "!border-none",
+                                "!w-full", "!shadow-md", "!shadow-orange-500/10",
+                                "hover:!shadow-orange-500/20"
+                            ]
+                        )
+                        btn_translate = gr.Button(
+                            "Translate", 
+                            interactive=False,
+                            elem_classes=[
+                                "!bg-gradient-to-r", "!from-orange-500", "!to-orange-600",
+                                "hover:!from-orange-400", "hover:!to-orange-500", "!text-white", 
                                 "!rounded-xl", "!py-2.5", "!text-sm", "!font-bold",
                                 "!transition-all", "!duration-200", "!border-none",
                                 "!w-full", "!shadow-md", "!shadow-orange-500/10",
@@ -798,30 +810,43 @@ def build_ui():
         video_player.upload(
             fn=handle_video_upload,
             inputs=[video_player],
-            outputs=[video_file_state, video_player, status_output, btn_step1]
+            outputs=[video_file_state, video_player, status_output, btn_transcribe, btn_translate]
         )
         
         # Handle clearing the video to reset UI state
         def handle_video_clear():
-            return None, None, "Video removed.", gr.Button(interactive=False)
+            return None, None, "Video removed.", gr.Button(interactive=False), gr.Button(interactive=False)
             
         video_player.clear(
             fn=handle_video_clear,
-            outputs=[video_file_state, video_player, status_output, btn_step1]
+            outputs=[video_file_state, video_player, status_output, btn_transcribe, btn_translate]
         )
         
-        # Wrapper to enable Step 2 button on transcription success
-        def step1_wrapper(video, model, src, tgt, mirror, merge):
-            df, audio, tmp, status, processed_video = step1_transcribe_and_translate(video, model, src, tgt, mirror, merge)
+        # Transcription & Translation split wrappers
+        def transcribe_wrapper(video, model, mirror, merge):
+            df, audio, tmp, status, processed_video = step1_a_transcribe(video, model, mirror, merge)
             is_success = df is not None and len(df) > 0
-            btn2_update = gr.Button(interactive=True) if is_success else gr.Button(interactive=False)
-            return df, audio, tmp, status, btn2_update, processed_video, processed_video
+            btn_translate_update = gr.Button(interactive=True) if is_success else gr.Button(interactive=False)
+            return df, audio, tmp, status, btn_translate_update, processed_video, processed_video
+
+        def translate_wrapper(df, source, target):
+            # df contains current UI table values (including any user corrections!)
+            new_df, status = step1_b_translate(df, source, target)
+            is_success = new_df is not None and len(new_df) > 0
+            btn_step2_update = gr.Button(interactive=True) if is_success else gr.Button(interactive=False)
+            return new_df, status, btn_step2_update
             
         # Button triggers
-        btn_step1.click(
-            fn=step1_wrapper,
-            inputs=[video_file_state, whisper_model, source_lang, target_lang, mirror_video, merge_segments],
-            outputs=[transcription_df, extracted_audio_state, temp_dir_state, status_output, btn_step2, video_file_state, video_player]
+        btn_transcribe.click(
+            fn=transcribe_wrapper,
+            inputs=[video_file_state, whisper_model, mirror_video, merge_segments],
+            outputs=[transcription_df, extracted_audio_state, temp_dir_state, status_output, btn_translate, video_file_state, video_player]
+        )
+
+        btn_translate.click(
+            fn=translate_wrapper,
+            inputs=[transcription_df, source_lang, target_lang],
+            outputs=[transcription_df, status_output, btn_step2]
         )
         
         def step2_wrapper(df, video_path, extracted_audio, temp_dir, target_voice, bg_volume, ai_delay_val, remove_voice, proc_mode, font, font_size, align, bg_box):

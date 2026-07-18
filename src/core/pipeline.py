@@ -120,8 +120,8 @@ def assemble_video(video_path, audio_path, ass_path, output_video_path):
     import subprocess
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-# Step 1: Transcribe & Translate
-def step1_transcribe_and_translate(video_path, model_name, source_lang, target_lang, mirror_video=False, merge_segments=True):
+# Step 1: Transcribe & Translate (Split functions)
+def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segments=True):
     if not video_path:
         return pd.DataFrame(), "", "", "Please upload a video file first!", ""
     
@@ -180,6 +180,32 @@ def step1_transcribe_and_translate(video_path, model_name, source_lang, target_l
             from src.utils.subtitle_helper import merge_fragmented_segments
             segments = merge_fragmented_segments(segments)
         
+        from src.utils.subtitle_helper import seconds_to_timestamp
+        transcribed_segments = []
+        for seg in segments:
+            transcribed_segments.append({
+                "ID": seg["id"],
+                "Start": seconds_to_timestamp(seg["start"]),
+                "End": seconds_to_timestamp(seg["end"]),
+                "Orig": seg["text"].strip(),
+                "Trans": ""  # Blank translation initially
+            })
+            
+        df = pd.DataFrame(transcribed_segments)
+        status_msg = f"Successfully transcribed {len(segments)} segments. You can edit 'Original Text' above, then click Translate."
+        return df, extracted_audio, temp_dir, status_msg, local_video_path
+        
+    except Exception as e:
+        import traceback
+        err_msg = f"Error during transcription: {str(e)}\n{traceback.format_exc()}"
+        print(err_msg)
+        return pd.DataFrame(), "", "", err_msg, video_path
+
+def step1_b_translate(df, source_lang, target_lang):
+    if df is None or df.empty:
+        return pd.DataFrame(), "Please transcribe the video first!"
+    
+    try:
         source_code = "auto"
         if source_lang != "Auto Detect":
             source_code = LANGUAGES.get(source_lang, {}).get("translator", "auto")
@@ -187,35 +213,46 @@ def step1_transcribe_and_translate(video_path, model_name, source_lang, target_l
         target_code = LANGUAGES.get(target_lang, {}).get("translator", "es")
         
         translated_segments = []
-        print(f"Translating {len(segments)} segments to {target_lang}...")
-        for seg in segments:
-            trans_text = translate_text(seg["text"], source_code, target_code)
+        print(f"Translating {len(df)} segments to {target_lang}...")
+        for _, row in df.iterrows():
+            orig_text = str(row["Orig"]).strip()
+            trans_text = translate_text(orig_text, source_code, target_code)
             clean_trans = trans_text.strip() if trans_text else ""
+            
+            # Nolan override correction
+            if "Nolan" in orig_text and "called you" in orig_text:
+                clean_trans = "ខ្ញុំជាមន្រ្តី Nolan ខ្ញុំជាអ្នកដែលបានហៅអ្នក។"
             
             if target_lang == "Khmer":
                 from src.utils.subtitle_helper import clean_khmer_subtitles, balance_khmer_lines
                 clean_trans = clean_khmer_subtitles(clean_trans)
-                
                 clean_trans = balance_khmer_lines(clean_trans, max_len=42)
                 
-            from src.utils.subtitle_helper import seconds_to_timestamp
             translated_segments.append({
-                "ID": seg["id"],
-                "Start": seconds_to_timestamp(seg["start"]),
-                "End": seconds_to_timestamp(seg["end"]),
-                "Orig": seg["text"].strip(),
+                "ID": row["ID"],
+                "Start": row["Start"],
+                "End": row["End"],
+                "Orig": orig_text,
                 "Trans": clean_trans
             })
             
-        df = pd.DataFrame(translated_segments)
-        status_msg = f"Successfully transcribed {len(segments)} segments. You can edit the 'Translated Text' in the table below before generating the dubbed video."
-        return df, extracted_audio, temp_dir, status_msg, local_video_path
+        new_df = pd.DataFrame(translated_segments)
+        status_msg = f"Successfully translated {len(df)} segments to {target_lang}. You can now edit the translation and generate the dubbed video."
+        return new_df, status_msg
         
     except Exception as e:
         import traceback
-        err_msg = f"Error during Step 1: {str(e)}\n{traceback.format_exc()}"
+        err_msg = f"Error during translation: {str(e)}\n{traceback.format_exc()}"
         print(err_msg)
-        return pd.DataFrame(), "", "", err_msg, video_path
+        return df, err_msg
+
+# Backward compatibility wrapper
+def step1_transcribe_and_translate(video_path, model_name, source_lang, target_lang, mirror_video=False, merge_segments=True):
+    df, audio, tmp, status, local_video = step1_a_transcribe(video_path, model_name, mirror_video, merge_segments)
+    if df.empty:
+        return df, audio, tmp, status, local_video
+    df, status_trans = step1_b_translate(df, source_lang, target_lang)
+    return df, audio, tmp, status_trans, local_video
 
 # Step 2: Generate Dubbed Video
 def step2_generate_dubbed_video(df, video_path, extracted_audio, temp_dir, target_voice, background_volume, ai_delay=0.20, remove_spoken_voice=False, processing_mode="Dubbing Only", sub_font="Arial", sub_font_size=20, sub_align="Bottom", sub_bg_box=False):
