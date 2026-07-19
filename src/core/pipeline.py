@@ -132,7 +132,18 @@ def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segment
         video_ext = os.path.splitext(video_path)[1]
         local_video_path = os.path.join(temp_dir, f"local_input{video_ext}")
         print(f"Creating decoupled local video copy: {local_video_path}")
-        shutil.copyfile(video_path, local_video_path)
+        
+        # Retry loop to avoid Windows PermissionError sharing violations if browser locks the upload path
+        for i in range(5):
+            try:
+                shutil.copy(video_path, local_video_path)
+                break
+            except PermissionError:
+                import time
+                time.sleep(0.2)
+        else:
+            # Fallback
+            shutil.copyfile(video_path, local_video_path)
         
         if mirror_video:
             print("Mirroring video (Flip Horizontal)...")
@@ -245,7 +256,7 @@ def step1_b_translate(df, source_lang, target_lang):
         import traceback
         err_msg = f"Error during translation: {str(e)}\n{traceback.format_exc()}"
         print(err_msg)
-        return df, err_msg
+        return pd.DataFrame(), err_msg
 
 # Backward compatibility wrapper
 def step1_transcribe_and_translate(video_path, model_name, source_lang, target_lang, mirror_video=False, merge_segments=True):
