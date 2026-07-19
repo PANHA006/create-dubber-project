@@ -163,7 +163,7 @@ def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segment
         model = get_whisper_model(model_name)
         
         print("Transcribing...")
-        result = model.transcribe(extracted_audio, word_timestamps=True)
+        result = model.transcribe(extracted_audio, verbose=True, word_timestamps=True)
         
         segments = result.get("segments", [])
         if not segments:
@@ -235,6 +235,7 @@ def step1_b_translate(df, source_lang, target_lang):
                 "Orig": orig_text,
                 "Trans": clean_trans
             })
+            print(f"Translating Segment {row['ID']}: '{orig_text}' -> '{clean_trans}'")
             
         new_df = pd.DataFrame(translated_segments)
         status_msg = f"Successfully translated {len(df)} segments to {target_lang}. You can now edit the translation and generate the dubbed video."
