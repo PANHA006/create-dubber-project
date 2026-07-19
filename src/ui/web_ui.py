@@ -652,7 +652,7 @@ def build_ui():
                             scale=0
                         )
                         
-                        export_script_btn = gr.DownloadButton(
+                        export_script_btn = gr.Button(
                             "📤 Export", 
                             elem_classes=[
                                 "!bg-[#1e293b]", "hover:!bg-[#334155]", "!text-white", 
@@ -661,6 +661,8 @@ def build_ui():
                             ],
                             scale=0
                         )
+                        
+                        export_file_output = gr.File(visible=False)
                     
                     transcription_df = gr.Dataframe(
                         headers=["ID", "Start", "End", "Orig", "Trans"],
@@ -844,7 +846,7 @@ def build_ui():
         export_script_btn.click(
             fn=lambda df: (export_script_fn(df), "Script exported successfully."),
             inputs=[transcription_df],
-            outputs=[export_script_btn, status_output]
+            outputs=[export_file_output, status_output]
         )
         
         # Hidden action trigger event handler
