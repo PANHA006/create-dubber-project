@@ -392,27 +392,27 @@ def export_script_fn(df, export_type):
 
 def import_script_fn(file_obj, current_df):
     if file_obj is None:
-        return current_df, "Please select a file to import."
+        return current_df, "Please select a file to import.", gr.Button(interactive=False)
         
     import pandas as pd
     file_path = getattr(file_obj, "name", None) or getattr(file_obj, "path", None) or file_obj
     if not file_path:
-        return current_df, "Invalid file path."
+        return current_df, "Invalid file path.", gr.Button(interactive=False)
         
     if not str(file_path).lower().endswith(".txt"):
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS"
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
         
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
     except UnicodeDecodeError:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS"
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
     except Exception as e:
-        return current_df, f"Error reading file: {e}"
+        return current_df, f"Error reading file: {e}", gr.Button(interactive=False)
         
     lines = [line.strip() for line in content.replace("\r\n", "\n").split("\n") if line.strip()]
     if not lines:
-        return current_df, "File is empty."
+        return current_df, "File is empty.", gr.Button(interactive=False)
         
     header = lines[0].strip()
     if header == "ID|START|END|TRANS":
@@ -420,10 +420,10 @@ def import_script_fn(file_obj, current_df):
     elif header == "ID|START|END|ORIG|TRANS":
         is_orig_trans = True
     else:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS"
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
         
     if current_df is None or current_df.empty:
-        return current_df, "No transcription data in the table to update. Please perform Step 1 first."
+        return current_df, "No transcription data in the table to update. Please perform Step 1 first.", gr.Button(interactive=False)
         
     new_df = current_df.copy()
     parsed_updates = {}
@@ -432,7 +432,7 @@ def import_script_fn(file_obj, current_df):
         parts = line.split("|")
         expected_min = 5 if is_orig_trans else 4
         if len(parts) < expected_min:
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS"
+            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
             
         try:
             row_id = int(parts[0])
@@ -441,7 +441,7 @@ def import_script_fn(file_obj, current_df):
             else:
                 trans_text = "|".join(parts[3:])
         except (ValueError, IndexError):
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS"
+            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
             
         parsed_updates[row_id] = trans_text
         
@@ -455,7 +455,7 @@ def import_script_fn(file_obj, current_df):
             updated_count += 1
             
     status_msg = "Script imported successfully."
-    return new_df, status_msg
+    return new_df, status_msg, gr.Button(interactive=True)
 
 def build_ui():
     head_html = """
@@ -866,7 +866,7 @@ def build_ui():
         import_script_btn.upload(
             fn=import_script_fn,
             inputs=[import_script_btn, transcription_df],
-            outputs=[transcription_df, status_output]
+            outputs=[transcription_df, status_output, btn_step2]
         )
         
         export_script_btn.click(
