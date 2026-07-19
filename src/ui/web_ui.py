@@ -346,7 +346,7 @@ def update_voices_dropdown(target_lang):
     default_val = filtered_voices[0] if filtered_voices else None
     return gr.Dropdown(choices=filtered_voices, value=default_val, allow_custom_value=True)
 
-def export_script_fn(df, export_type):
+def export_script_fn(df):
     if df is None or df.empty:
         return None
         
@@ -354,36 +354,17 @@ def export_script_fn(df, export_type):
     import os
     
     temp_dir = tempfile.mkdtemp()
-    
-    selected_type = export_type
-    if not selected_type or selected_type == "Select Script":
-        selected_type = "Export ORIG (.txt)"
-    
-    if selected_type == "Export ORIG (.txt)":
-        file_path = os.path.join(temp_dir, "subtitle_original.txt")
-        lines = ["ID|START|END|ORIG"]
-        for _, row in df.iterrows():
-            try:
-                row_id = int(row["ID"])
-            except Exception:
-                row_id = row["ID"]
-            start = row["Start"]
-            end = row["End"]
-            orig = row["Orig"]
-            lines.append(f"{row_id}|{start}|{end}|{orig}")
-    else:
-        file_path = os.path.join(temp_dir, "subtitle_translated.txt")
-        lines = ["ID|START|END|ORIG|TRANS"]
-        for _, row in df.iterrows():
-            try:
-                row_id = int(row["ID"])
-            except Exception:
-                row_id = row["ID"]
-            start = row["Start"]
-            end = row["End"]
-            orig = row["Orig"]
-            trans = row["Trans"]
-            lines.append(f"{row_id}|{start}|{end}|{orig}|{trans}")
+    file_path = os.path.join(temp_dir, "subtitle_original.txt")
+    lines = ["ID|START|END|ORIG"]
+    for _, row in df.iterrows():
+        try:
+            row_id = int(row["ID"])
+        except Exception:
+            row_id = row["ID"]
+        start = row["Start"]
+        end = row["End"]
+        orig = row["Orig"]
+        lines.append(f"{row_id}|{start}|{end}|{orig}")
             
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -660,15 +641,6 @@ def build_ui():
                 with gr.Group(elem_id="dataframe-group", elem_classes=["!bg-[#0f172a]/40", "!border", "!border-white/5", "!p-0", "!m-0","!gap-2", "!shadow-xl", "!flex", "!flex-col", "!h-full"]):
                     # Toolbar Row for Import and Export Script
                     with gr.Row(elem_id="dataframe-toolbar", elem_classes=["!p-0", "!m-0", "!gap-2"]):
-                        export_type_dropdown = gr.Dropdown(
-                            choices=["Select Script", "Export ORIG (.txt)", "Export ORIG + TRANS (.txt)"],
-                            value="Select Script",
-                            show_label=False,
-                            container=False,
-                            elem_classes=["!min-width-0", "!w-64"],
-                            scale=0
-                        )
-                        
                         import_script_btn = gr.UploadButton(
                             "📥 Import", 
                             file_types=[".txt"], 
@@ -870,8 +842,8 @@ def build_ui():
         )
         
         export_script_btn.click(
-            fn=lambda df, t: (export_script_fn(df, t), "Script exported successfully."),
-            inputs=[transcription_df, export_type_dropdown],
+            fn=lambda df: (export_script_fn(df), "Script exported successfully."),
+            inputs=[transcription_df],
             outputs=[export_script_btn, status_output]
         )
         
