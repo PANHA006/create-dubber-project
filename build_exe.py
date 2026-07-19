@@ -1,11 +1,10 @@
-import subprocess
 import sys
 import os
+import PyInstaller.__main__
 
 print("Starting PyInstaller compilation process...")
 
 cmd = [
-    ".venv\\Scripts\\pyinstaller",
     "--noconfirm",
     "--onedir",
     "--console",
@@ -24,12 +23,11 @@ cmd = [
     "run.py"
 ]
 
-print("Executing command:", " ".join(cmd))
-result = subprocess.run(cmd, capture_output=False, text=True)
-
-if result.returncode == 0:
+print("Executing PyInstaller programmatically with args:", cmd)
+try:
+    PyInstaller.__main__.run(cmd)
     print("\nSUCCESS: Compilation completed successfully!")
     print("You can find your executable inside the 'dist/DubberAI' folder.")
-else:
-    print(f"\nFAILURE: PyInstaller exited with code {result.returncode}")
-    sys.exit(result.returncode)
+except Exception as e:
+    print(f"\nFAILURE: PyInstaller program raised exception: {e}")
+    sys.exit(1)
