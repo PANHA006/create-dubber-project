@@ -381,13 +381,13 @@ def import_script_fn(file_obj, current_df):
         return current_df, "Invalid file path.", gr.Button(interactive=False)
         
     if not str(file_path).lower().endswith(".txt"):
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
         
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
     except UnicodeDecodeError:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
     except Exception as e:
         return current_df, f"Error reading file: {e}", gr.Button(interactive=False)
         
@@ -397,11 +397,13 @@ def import_script_fn(file_obj, current_df):
         
     header = lines[0].strip()
     if header == "ID|START|END|TRANS":
-        is_orig_trans = False
+        mode = "trans"
     elif header == "ID|START|END|ORIG|TRANS":
-        is_orig_trans = True
+        mode = "orig_trans"
+    elif header == "ID|START|END|ORIG":
+        mode = "orig"
     else:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
+        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
         
     if current_df is None or current_df.empty:
         return current_df, "No transcription data in the table to update. Please perform Step 1 first.", gr.Button(interactive=False)
@@ -411,31 +413,43 @@ def import_script_fn(file_obj, current_df):
     
     for line in lines[1:]:
         parts = line.split("|")
-        expected_min = 5 if is_orig_trans else 4
+        expected_min = 5 if mode == "orig_trans" else 4
         if len(parts) < expected_min:
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
+            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
             
         try:
             row_id = int(parts[0])
-            if is_orig_trans:
-                trans_text = "|".join(parts[4:])
-            else:
-                trans_text = "|".join(parts[3:])
-        except (ValueError, IndexError):
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
+            start_ts = parts[1].strip()
+            end_ts = parts[2].strip()
             
-        parsed_updates[row_id] = trans_text
+            update_item = {"start": start_ts, "end": end_ts}
+            if mode == "orig_trans":
+                update_item["orig"] = parts[3]
+                update_item["trans"] = "|".join(parts[4:])
+            elif mode == "trans":
+                update_item["trans"] = "|".join(parts[3:])
+            elif mode == "orig":
+                update_item["orig"] = "|".join(parts[3:])
+        except (ValueError, IndexError):
+            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
+            
+        parsed_updates[row_id] = update_item
         
     updated_count = 0
     new_df["ID"] = new_df["ID"].astype(int)
-    for row_id, trans_text in parsed_updates.items():
+    for row_id, item in parsed_updates.items():
         matching_indices = new_df.index[new_df["ID"] == row_id].tolist()
         if matching_indices:
             idx = matching_indices[0]
-            new_df.at[idx, "Trans"] = trans_text
+            new_df.at[idx, "Start"] = item["start"]
+            new_df.at[idx, "End"] = item["end"]
+            if "trans" in item:
+                new_df.at[idx, "Trans"] = item["trans"]
+            if "orig" in item:
+                new_df.at[idx, "Orig"] = item["orig"]
             updated_count += 1
             
-    status_msg = "Script imported successfully."
+    status_msg = f"Script imported successfully ({updated_count} segments updated)."
     return new_df, status_msg, gr.Button(interactive=True)
 
 def build_ui():
