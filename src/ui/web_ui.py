@@ -690,7 +690,21 @@ def build_ui():
                         )
                         merge_segments = gr.Checkbox(
                             label="Merge Short Segments", 
-                            value=False
+                            value=True
+                        )
+                        max_pause_gap = gr.Slider(
+                            minimum=0.0,
+                            maximum=3.0,
+                            value=0.8,
+                            step=0.1,
+                            label="Max Pause Gap (seconds)"
+                        )
+                        max_merge_count = gr.Slider(
+                            minimum=1,
+                            maximum=10,
+                            value=3,
+                            step=1,
+                            label="Max Merged Segments Limit"
                         )
                     
                     with gr.Row(elem_classes=["!py-3", "!px-3", "!gap-2"]):
@@ -909,8 +923,8 @@ def build_ui():
         )
         
         # Transcription & Translation split wrappers
-        def transcribe_wrapper(video, model, mirror, merge):
-            df, audio, tmp, status, processed_video = step1_a_transcribe(video, model, mirror, merge)
+        def transcribe_wrapper(video, model, mirror, merge, max_gap, max_count):
+            df, audio, tmp, status, processed_video = step1_a_transcribe(video, model, mirror, merge, max_gap, max_count)
             is_success = df is not None and len(df) > 0
             if is_success:
                 save_session_cache(df=df, video_path=processed_video, audio_path=audio, temp_dir=tmp, status_msg=status)
@@ -930,7 +944,7 @@ def build_ui():
         # Button triggers
         btn_transcribe.click(
             fn=transcribe_wrapper,
-            inputs=[video_file_state, whisper_model, mirror_video, merge_segments],
+            inputs=[video_file_state, whisper_model, mirror_video, merge_segments, max_pause_gap, max_merge_count],
             outputs=[transcription_df, extracted_audio_state, temp_dir_state, status_output, btn_translate, video_file_state, video_player]
         )
 

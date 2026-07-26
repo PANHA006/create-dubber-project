@@ -79,7 +79,7 @@ def balance_khmer_lines(text, max_len=42):
 
 def split_segments_by_punctuation(segments):
     """Split Whisper segments into separate rows whenever a word ends with or contains punctuation, using exact word-level start and end timestamps, while filtering out micro noise fragments (< 0.4s)."""
-    punct_marks = (".", "!", "?", "。", "！", "？", "，", "；", ",", ";", "、")
+    punct_marks = (".", "!", "?", "。", "！", "？", "，", "；", ",", ";", "、", "។", "៕", "៖")
     noise_words = {"啊", "呃", "嗯", "吧", "一了", "呀", "哦", "哈", "哇", "嘞", "呢"}
     split_result = []
     new_id = 0
@@ -130,13 +130,12 @@ def split_segments_by_punctuation(segments):
     return split_result
 
 
-def merge_fragmented_segments(segments, max_gap=1.5):
-    """Merge adjacent fragments while preserving their enclosing timing (limit to max 5 merged segments)."""
+def merge_fragmented_segments(segments, max_gap=0.8, max_merge_count=3):
+    """Merge adjacent fragments while preserving their enclosing timing (configurable pause gap and max merged count, keeping all punctuation)."""
     if not segments:
         return []
     merged = []
     current = None
-    terminal_marks = (".", "!", "?", "。", "！", "？", "，", "；", ",", ";", "、", "។", "៕", "៖")
     for segment in segments:
         text = segment.get("text", "").strip()
         if not text:
@@ -151,7 +150,7 @@ def merge_fragmented_segments(segments, max_gap=1.5):
             }
             continue
         gap = segment.get("start", 0.0) - current["end"]
-        if not current["text"].rstrip().endswith(terminal_marks) and gap <= max_gap and current.get("merge_count", 1) < 5:
+        if gap <= max_gap and current.get("merge_count", 1) < max_merge_count:
             current["text"] += " " + text
             current["end"] = segment.get("end", current["end"])
             current["merge_count"] = current.get("merge_count", 1) + 1
