@@ -372,85 +372,154 @@ def export_script_fn(df):
     return file_path
 
 def import_script_fn(file_obj, current_df):
-    if file_obj is None:
-        return current_df, "Please select a file to import.", gr.Button(interactive=False)
-        
     import pandas as pd
+    if file_obj is None:
+        return current_df if current_df is not None else pd.DataFrame(), "Please select a file to import.", gr.Button(interactive=False)
+        
     file_path = getattr(file_obj, "name", None) or getattr(file_obj, "path", None) or file_obj
     if not file_path:
-        return current_df, "Invalid file path.", gr.Button(interactive=False)
+        return current_df if current_df is not None else pd.DataFrame(), "Invalid file path.", gr.Button(interactive=False)
         
     if not str(file_path).lower().endswith(".txt"):
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
+        return current_df if current_df is not None else pd.DataFrame(), "Invalid subtitle script format. Please select a .txt file.", gr.Button(interactive=False)
         
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, "r", encoding="utf-8-sig") as f:
             content = f.read()
-    except UnicodeDecodeError:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
     except Exception as e:
-        return current_df, f"Error reading file: {e}", gr.Button(interactive=False)
+        return current_df if current_df is not None else pd.DataFrame(), f"Error reading file: {e}", gr.Button(interactive=False)
         
     lines = [line.strip() for line in content.replace("\r\n", "\n").split("\n") if line.strip()]
     if not lines:
-        return current_df, "File is empty.", gr.Button(interactive=False)
+        return current_df if current_df is not None else pd.DataFrame(), "File is empty.", gr.Button(interactive=False)
         
-    header = lines[0].strip()
-    if header == "ID|START|END|TRANS":
-        mode = "trans"
-    elif header == "ID|START|END|ORIG|TRANS":
+    first_line = lines[0].strip()
+    first_parts = first_line.split("|")
+    
+    start_index = 1
+    if first_line.upper().startswith("ID|START|END|ORIG|TRANS"):
         mode = "orig_trans"
-    elif header == "ID|START|END|ORIG":
+    elif first_line.upper().startswith("ID|START|END|TRANS"):
+        mode = "trans"
+    elif first_line.upper().startswith("ID|START|END|ORIG"):
         mode = "orig"
     else:
-        return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
-        
-    if current_df is None or current_df.empty:
-        return current_df, "No transcription data in the table to update. Please perform Step 1 first.", gr.Button(interactive=False)
-        
-    new_df = current_df.copy()
-    parsed_updates = {}
-    
-    for line in lines[1:]:
-        parts = line.split("|")
-        expected_min = 5 if mode == "orig_trans" else 4
-        if len(parts) < expected_min:
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
+        start_index = 0
+        if len(first_parts) >= 5:
+            mode = "orig_trans"
+        elif len(first_parts) == 4:
+            mode = "trans"
+        else:
+            mode = "orig"
             
+    parsed_records = []
+    for line in lines[start_index:]:
+        parts = line.split("|")
+        if len(parts) < 3:
+            continue
         try:
-            row_id = int(parts[0])
+            row_id = int(parts[0].strip())
             start_ts = parts[1].strip()
             end_ts = parts[2].strip()
             
-            update_item = {"start": start_ts, "end": end_ts}
-            if mode == "orig_trans":
-                update_item["orig"] = parts[3]
-                update_item["trans"] = "|".join(parts[4:])
-            elif mode == "trans":
-                update_item["trans"] = "|".join(parts[3:])
-            elif mode == "orig":
-                update_item["orig"] = "|".join(parts[3:])
+            orig_val = ""
+            trans_val = ""
+            if mode == "orig_trans" and len(parts) >= 5:
+                orig_val = parts[3].strip()
+                trans_val = "|".join(parts[4:]).strip()
+            elif mode == "trans" and len(parts) >= 4:
+                trans_val = "|".join(parts[3:]).strip()
+            elif mode == "orig" and len(parts) >= 4:
+                orig_val = "|".join(parts[3:]).strip()
+            elif len(parts) >= 5:
+                orig_val = parts[3].strip()
+                trans_val = "|".join(parts[4:]).strip()
+            elif len(parts) == 4:
+                trans_val = "|".join(parts[3:]).strip()
+                
+            parsed_records.append({
+                "ID": row_id,
+                "Start": start_ts,
+                "End": end_ts,
+                "Orig": orig_val,
+                "Trans": trans_val
+            })
         except (ValueError, IndexError):
-            return current_df, "Invalid subtitle script format.\nExpected:\nID|START|END|TRANS  or  ID|START|END|ORIG|TRANS  or  ID|START|END|ORIG", gr.Button(interactive=False)
+            continue
             
-        parsed_updates[row_id] = update_item
+    if not parsed_records:
+        return current_df if current_df is not None else pd.DataFrame(), "Could not parse any valid rows from the script file. Expected format: ID|START|END|ORIG|TRANS", gr.Button(interactive=False)
         
-    updated_count = 0
-    new_df["ID"] = new_df["ID"].astype(int)
-    for row_id, item in parsed_updates.items():
-        matching_indices = new_df.index[new_df["ID"] == row_id].tolist()
-        if matching_indices:
-            idx = matching_indices[0]
-            new_df.at[idx, "Start"] = item["start"]
-            new_df.at[idx, "End"] = item["end"]
-            if "trans" in item:
-                new_df.at[idx, "Trans"] = item["trans"]
-            if "orig" in item:
-                new_df.at[idx, "Orig"] = item["orig"]
-            updated_count += 1
+    imported_df = pd.DataFrame(parsed_records)
+    
+    if current_df is None or current_df.empty:
+        final_df = imported_df
+    else:
+        final_df = current_df.copy()
+        final_df["ID"] = final_df["ID"].astype(int)
+        for _, imp_row in imported_df.iterrows():
+            r_id = imp_row["ID"]
+            matching = final_df.index[final_df["ID"] == r_id].tolist()
+            if matching:
+                idx = matching[0]
+                final_df.at[idx, "Start"] = imp_row["Start"]
+                final_df.at[idx, "End"] = imp_row["End"]
+                if imp_row["Trans"]:
+                    final_df.at[idx, "Trans"] = imp_row["Trans"]
+                if imp_row["Orig"]:
+                    final_df.at[idx, "Orig"] = imp_row["Orig"]
+            else:
+                final_df = pd.concat([final_df, pd.DataFrame([imp_row])], ignore_index=True)
+                
+    status_msg = f"Script imported successfully ({len(imported_df)} segments loaded)."
+    cache = load_session_cache() or {}
+    save_session_cache(df=final_df, video_path=cache.get("video_path"), audio_path=cache.get("audio_path"), temp_dir=cache.get("temp_dir"), status_msg=status_msg)
+    return final_df, status_msg, gr.Button(interactive=True)
             
-    status_msg = f"Script imported successfully ({updated_count} segments updated)."
-    return new_df, status_msg, gr.Button(interactive=True)
+SESSION_CACHE_FILE = os.path.join("output", "session_cache.json")
+
+def save_session_cache(df=None, video_path=None, audio_path=None, temp_dir=None, status_msg=""):
+    import json
+    try:
+        os.makedirs("output", exist_ok=True)
+        data = {
+            "video_path": video_path if video_path and os.path.exists(video_path) else "",
+            "audio_path": audio_path if audio_path and os.path.exists(audio_path) else "",
+            "temp_dir": temp_dir if temp_dir and os.path.exists(temp_dir) else "",
+            "status_msg": status_msg or "",
+            "df": df.to_dict(orient="records") if df is not None and not df.empty else []
+        }
+        with open(SESSION_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Warning: Failed to save session cache: {e}")
+
+def load_session_cache():
+    import json
+    import pandas as pd
+    if not os.path.exists(SESSION_CACHE_FILE):
+        return None
+    try:
+        with open(SESSION_CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        video_path = data.get("video_path", "")
+        if video_path and not os.path.exists(video_path):
+            video_path = ""
+        audio_path = data.get("audio_path", "")
+        temp_dir = data.get("temp_dir", "")
+        status_msg = data.get("status_msg", "")
+        records = data.get("df", [])
+        df = pd.DataFrame(records) if records else pd.DataFrame()
+        return {
+            "df": df,
+            "video_path": video_path,
+            "audio_path": audio_path,
+            "temp_dir": temp_dir,
+            "status_msg": status_msg
+        }
+    except Exception as e:
+        print(f"Warning: Failed to load session cache: {e}")
+        return None
 
 def build_ui():
     head_html = """
@@ -551,7 +620,7 @@ def build_ui():
                         source_lang = gr.Dropdown(
                             label="Source Lang", 
                             choices=["Auto Detect"] + list(LANGUAGES.keys()), 
-                            value="Auto Detect"
+                            value="Chinese (Simplified)"
                         )
                         target_lang = gr.Dropdown(
                             label="Target Lang", 
@@ -595,7 +664,7 @@ def build_ui():
                             label="Background Music", 
                             minimum=0.0, 
                             maximum=1.0, 
-                            value=0.15, 
+                            value=0.0, 
                             step=0.05
                         )
                     with gr.Row(elem_classes=["!gap-2"]):
@@ -735,7 +804,7 @@ def build_ui():
                         visible=True,
                         elem_id="hidden-action-trigger"
                     )
-                    
+
         # Language change triggers voice dropdown population
         target_lang.change(
             fn=update_voices_dropdown, 
@@ -745,12 +814,38 @@ def build_ui():
         
         # Initialize voice choices on load and move script toolbar DOM inside header-row
         def load_initial_data():
+            import pandas as pd
             voices_drop = update_voices_dropdown("Khmer")
-            return voices_drop, generate_history_html()
+            history_html = generate_history_html()
+            
+            cache = load_session_cache()
+            if cache:
+                df_val = cache["df"]
+                v_path = cache["video_path"]
+                a_path = cache["audio_path"]
+                t_dir = cache["temp_dir"]
+                st_msg = cache["status_msg"] or "Restored previous session data."
+                
+                has_video = bool(v_path)
+                has_df = not df_val.empty
+                
+                btn_trans_upd = gr.Button(interactive=has_video)
+                btn_trl_upd = gr.Button(interactive=has_df)
+                btn_s2_upd = gr.Button(interactive=has_df)
+                
+                return (
+                    voices_drop, history_html, df_val, v_path, v_path,
+                    a_path, t_dir, st_msg, btn_trans_upd, btn_trl_upd, btn_s2_upd
+                )
+            
+            return (
+                voices_drop, history_html, pd.DataFrame(), None, None,
+                "", "", "Ready for upload.", gr.Button(interactive=False), gr.Button(interactive=False), gr.Button(interactive=False)
+            )
 
         demo.load(
             fn=load_initial_data,
-            outputs=[target_voice, history_html_container],
+            outputs=[target_voice, history_html_container, transcription_df, video_player, video_file_state, extracted_audio_state, temp_dir_state, status_output, btn_transcribe, btn_translate, btn_step2],
             js="""
             () => {
                 window.triggerAction = (actionName, payload) => {
@@ -801,6 +896,11 @@ def build_ui():
         
         # Handle clearing the video to reset UI state
         def handle_video_clear():
+            if os.path.exists(SESSION_CACHE_FILE):
+                try:
+                    os.remove(SESSION_CACHE_FILE)
+                except Exception:
+                    pass
             return None, None, "Video removed.", gr.Button(interactive=False), gr.Button(interactive=False)
             
         video_player.clear(
@@ -812,6 +912,8 @@ def build_ui():
         def transcribe_wrapper(video, model, mirror, merge):
             df, audio, tmp, status, processed_video = step1_a_transcribe(video, model, mirror, merge)
             is_success = df is not None and len(df) > 0
+            if is_success:
+                save_session_cache(df=df, video_path=processed_video, audio_path=audio, temp_dir=tmp, status_msg=status)
             btn_translate_update = gr.Button(interactive=True) if is_success else gr.Button(interactive=False)
             return df, audio, tmp, status, btn_translate_update, processed_video, processed_video
 
@@ -819,6 +921,9 @@ def build_ui():
             # df contains current UI table values (including any user corrections!)
             new_df, status = step1_b_translate(df, source, target)
             is_success = new_df is not None and len(new_df) > 0
+            if is_success:
+                cache = load_session_cache() or {}
+                save_session_cache(df=new_df, video_path=cache.get("video_path"), audio_path=cache.get("audio_path"), temp_dir=cache.get("temp_dir"), status_msg=status)
             btn_step2_update = gr.Button(interactive=True) if is_success else gr.Button(interactive=False)
             return new_df, status, btn_step2_update
             

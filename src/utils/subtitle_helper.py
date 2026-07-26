@@ -77,13 +77,66 @@ def balance_khmer_lines(text, max_len=42):
     return text[:best_break].rstrip() + "\n" + text[best_break + 1:].lstrip()
 
 
+def split_segments_by_punctuation(segments):
+    """Split Whisper segments into separate rows whenever a word ends with or contains punctuation, using exact word-level start and end timestamps, while filtering out micro noise fragments (< 0.4s)."""
+    punct_marks = (".", "!", "?", "。", "！", "？", "，", "；", ",", ";", "、")
+    noise_words = {"啊", "呃", "嗯", "吧", "一了", "呀", "哦", "哈", "哇", "嘞", "呢"}
+    split_result = []
+    new_id = 0
+
+    for seg in segments:
+        words = seg.get("words", [])
+        if not words:
+            split_result.append(seg)
+            continue
+
+        current_words = []
+        for w in words:
+            current_words.append(w)
+            w_text = w.get("word", "").strip()
+            if w_text and any(p in w_text for p in punct_marks):
+                row_text = "".join(item.get("word", "") for item in current_words).strip()
+                if row_text:
+                    dur = current_words[-1]["end"] - current_words[0]["start"]
+                    clean_txt = re.sub(r"[^\w\u4e00-\u9fff]", "", row_text).strip()
+                    # Filter out micro noise fragments (< 0.4s and short filler words)
+                    if dur < 0.4 and (len(clean_txt) <= 2 or clean_txt in noise_words):
+                        current_words = []
+                        continue
+                    split_result.append({
+                        "id": new_id,
+                        "start": current_words[0]["start"],
+                        "end": current_words[-1]["end"],
+                        "text": row_text
+                    })
+                    new_id += 1
+                current_words = []
+
+        if current_words:
+            row_text = "".join(item.get("word", "") for item in current_words).strip()
+            if row_text:
+                dur = current_words[-1]["end"] - current_words[0]["start"]
+                clean_txt = re.sub(r"[^\w\u4e00-\u9fff]", "", row_text).strip()
+                if dur < 0.4 and (len(clean_txt) <= 2 or clean_txt in noise_words):
+                    continue
+                split_result.append({
+                    "id": new_id,
+                    "start": current_words[0]["start"],
+                    "end": current_words[-1]["end"],
+                    "text": row_text
+                })
+                new_id += 1
+
+    return split_result
+
+
 def merge_fragmented_segments(segments, max_gap=1.5):
     """Merge adjacent fragments while preserving their enclosing timing (limit to max 5 merged segments)."""
     if not segments:
         return []
     merged = []
     current = None
-    terminal_marks = (".", "។", "៕", "៖", "?", "!")
+    terminal_marks = (".", "!", "?", "。", "！", "？", "，", "；", ",", ";", "、", "។", "៕", "៖")
     for segment in segments:
         text = segment.get("text", "").strip()
         if not text:

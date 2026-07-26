@@ -24,3 +24,5 @@ def extract_audio(video_path, output_wav_path):
         output_wav_path
     ]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+

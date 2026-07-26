@@ -174,19 +174,29 @@ def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segment
         model = get_whisper_model(model_name)
         
         print("Transcribing...")
-        result = model.transcribe(extracted_audio, verbose=True, word_timestamps=True)
+        # Initial prompt to guide Chinese vocabulary & classical mythology terms
+        chinese_initial_prompt = "以下是关于孙悟空、齐天大圣、阎罗王、生死簿、地狱、五百年阳寿、蟠桃、猴子的中文对话。"
+        
+        transcribe_kwargs = {
+            "verbose": False,
+            "word_timestamps": True,
+            "initial_prompt": chinese_initial_prompt,
+            "temperature": 0.0
+        }
+        try:
+            result = model.transcribe(extracted_audio, beam_size=5, **transcribe_kwargs)
+        except Exception:
+            result = model.transcribe(extracted_audio, **transcribe_kwargs)
+
         
         segments = result.get("segments", [])
         if not segments:
             return pd.DataFrame(), "", "", "No speech detected in the video!", local_video_path
             
-        # Refine segment start and end times to actual word timings if available
-        for seg in segments:
-            words = seg.get("words", [])
-            if words:
-                seg["start"] = words[0]["start"]
-                seg["end"] = words[-1]["end"]
-            
+        # Split segments into separate rows at punctuation marks using exact word-level timestamps
+        from src.utils.subtitle_helper import split_segments_by_punctuation
+        segments = split_segments_by_punctuation(segments)
+
         if merge_segments:
             from src.utils.subtitle_helper import merge_fragmented_segments
             segments = merge_fragmented_segments(segments)
@@ -321,14 +331,18 @@ def step2_generate_dubbed_video(df, video_path, extracted_audio, temp_dir, targe
                     
                 synth_duration = get_audio_duration(temp_tts)
                 
-                if synth_duration > target_duration and target_duration > 0.2:
-                    speed = synth_duration / target_duration
-                    if speed > 2.5:
-                        speed = 2.5
-                    print(f"Adjusting speed of Segment {seg_id}: {speed:.2f}x")
-                    adjust_audio_speed(temp_tts, aligned_tts, speed)
+                base_default_speed = 1.40
+                if target_duration > 0.2:
+                    required_speed = synth_duration / target_duration
+                    speed = max(base_default_speed, required_speed)
                 else:
-                    adjust_audio_speed(temp_tts, aligned_tts, 1.0)
+                    speed = base_default_speed
+                    
+                if speed > 3.0:
+                    speed = 3.0
+                    
+                print(f"Adjusting speed of Segment {seg_id}: {speed:.2f}x")
+                adjust_audio_speed(temp_tts, aligned_tts, speed)
                     
                 # Read and place on timeline
                 seg_audio = load_audio_segment_natively(aligned_tts)
