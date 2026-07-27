@@ -197,3 +197,30 @@ def timestamp_to_seconds(ts_str):
         return float(ts_str)
     except Exception:
         return 0.0
+
+
+def apply_end_padding(segments, padding_sec=0.25):
+    """Add extra padding seconds to segment end timestamps without overlapping into the next segment's start timestamp."""
+    if not segments or padding_sec <= 0:
+        return segments
+    
+    padded = []
+    num_segs = len(segments)
+    for i in range(num_segs):
+        seg = dict(segments[i])
+        current_end = seg.get("end", 0.0)
+        padded_end = current_end + padding_sec
+        
+        # Prevent overlapping with the next segment's start time
+        if i < num_segs - 1:
+            next_start = segments[i + 1].get("start", current_end)
+            if next_start > current_end:
+                padded_end = min(padded_end, next_start - 0.01)
+            else:
+                padded_end = current_end
+                
+        seg["end"] = max(current_end, padded_end)
+        padded.append(seg)
+        
+    return padded
+

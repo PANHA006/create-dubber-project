@@ -121,7 +121,7 @@ def assemble_video(video_path, audio_path, ass_path, output_video_path):
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 # Step 1: Transcribe & Translate (Split functions)
-def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segments=True, max_gap=0.8, max_merge_count=3):
+def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segments=True, max_gap=0.5, max_merge_count=3, end_padding=0.25):
     if not video_path:
         return pd.DataFrame(), "", "", "Please upload a video file first!", ""
     
@@ -204,6 +204,11 @@ def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segment
             from src.utils.subtitle_helper import merge_fragmented_segments
             segments = merge_fragmented_segments(segments, max_gap=max_gap, max_merge_count=max_merge_count)
         
+        # Apply extra end padding to give TTS voice extra duration buffer
+        if end_padding > 0:
+            from src.utils.subtitle_helper import apply_end_padding
+            segments = apply_end_padding(segments, padding_sec=end_padding)
+
         from src.utils.subtitle_helper import seconds_to_timestamp
         transcribed_segments = []
         for seg in segments:
@@ -272,7 +277,7 @@ def step1_b_translate(df, source_lang, target_lang):
         return pd.DataFrame(), err_msg
 
 # Backward compatibility wrapper
-def step1_transcribe_and_translate(video_path, model_name, source_lang, target_lang, mirror_video=False, merge_segments=True, max_gap=0.8, max_merge_count=3):
+def step1_transcribe_and_translate(video_path, model_name, source_lang, target_lang, mirror_video=False, merge_segments=True, max_gap=0.5, max_merge_count=3):
     df, audio, tmp, status, local_video = step1_a_transcribe(video_path, model_name, mirror_video, merge_segments, max_gap, max_merge_count)
     if df.empty:
         return df, audio, tmp, status, local_video
