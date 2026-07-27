@@ -181,7 +181,10 @@ def step1_a_transcribe(video_path, model_name, mirror_video=False, merge_segment
             "verbose": False,
             "word_timestamps": True,
             "initial_prompt": chinese_initial_prompt,
-            "temperature": 0.0
+            "temperature": (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+            "condition_on_previous_text": False,
+            "compression_ratio_threshold": 2.4,
+            "no_speech_threshold": 0.6
         }
         try:
             result = model.transcribe(extracted_audio, beam_size=5, **transcribe_kwargs)
